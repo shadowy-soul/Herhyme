@@ -139,7 +139,7 @@ private fun HerhymeScreen(
             Column(modifier = Modifier.fillMaxSize().padding(horizontal = 22.dp, vertical = 28.dp)) {
                 Text("HERHYME", color = Color.White, fontSize = 13.sp, letterSpacing = 4.sp)
                 Text(
-                    "Your music,\\nyour space.",
+                    "Your music,\nyour space.",
                     color = Color.White,
                     fontSize = 32.sp,
                     lineHeight = 38.sp,
