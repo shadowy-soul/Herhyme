@@ -131,7 +131,8 @@ class MainActivity : ComponentActivity() {
                 onSeek = { controller?.seekTo(it) },
                 onToggleShuffle = { toggleShuffle() },
                 onCycleRepeat = { cycleRepeat() },
-                onProgressTick = { updatePlaybackProgress() }
+                onProgressTick = { updatePlaybackProgress() },
+                onShuffleSongs = { playShuffledSongs() }
             )
         }
     }
@@ -267,7 +268,8 @@ private fun HerhymeScreen(
     onSeek: (Long) -> Unit,
     onToggleShuffle: () -> Unit,
     onCycleRepeat: () -> Unit,
-    onProgressTick: () -> Unit
+    onProgressTick: () -> Unit,
+    onShuffleSongs: () -> Unit
 ) {
     var selectedTab by remember { mutableStateOf("Home") }
     var searchText by remember { mutableStateOf("") }
@@ -315,7 +317,7 @@ private fun HerhymeScreen(
                                 onSongSelected = onSongSelected,
                                 onShowAll = { selectedTab = "Songs" },
                                 onFavorites = { selectedTab = "Favorites" },
-                                onShuffle = { playShuffledSongs() }
+                                onShuffle = onShuffleSongs
                             )
                             "Songs" -> SongsContent(songs = filteredSongs, onSongSelected = onSongSelected)
                             "Favorites" -> FavoritesContent(
