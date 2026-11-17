@@ -9,5 +9,6 @@ data class Song(
     val album: String,
     val uri: Uri,
     val durationMs: Long,
-    val artworkUri: Uri?
+    val artworkUri: Uri?,
+    val folderPath: String
 )
