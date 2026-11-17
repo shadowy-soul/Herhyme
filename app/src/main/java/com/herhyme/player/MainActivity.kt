@@ -977,6 +977,7 @@ private fun SettingsSection(
     title: String,
     subtitle: String,
     expanded: Boolean,
+    onClick: () -> Unit,
     content: @Composable () -> Unit
 ) {
     Column(
