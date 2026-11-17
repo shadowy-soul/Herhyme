@@ -994,7 +994,7 @@ private fun SettingsSection(
             Text(subtitle, color = MutedText, fontSize = 11.sp)
         }
         if (expanded) {
-            Column(modifier = Modifier.padding(start = 14.dp, end = 14.dp, bottom = 14.dp), content = content)
+            Column(modifier = Modifier.padding(start = 14.dp, end = 14.dp, bottom = 14.dp)) { content() }
         }
     }
 }
