@@ -2,6 +2,7 @@ package com.herhyme.player
 
 import android.content.ContentUris
 import android.content.Context
+import android.net.Uri
 import android.provider.MediaStore
 
 class MusicRepository(private val context: Context) {
@@ -12,6 +13,7 @@ class MusicRepository(private val context: Context) {
             MediaStore.Audio.Media.TITLE,
             MediaStore.Audio.Media.ARTIST,
             MediaStore.Audio.Media.ALBUM,
+            MediaStore.Audio.Media.ALBUM_ID,
             MediaStore.Audio.Media.DURATION
         )
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
@@ -22,23 +24,28 @@ class MusicRepository(private val context: Context) {
             projection,
             selection,
             null,
-            "${MediaStore.Audio.Media.TITLE} COLLATE NOCASE ASC"
+            "${MediaStore.Audio.Media.DATE_ADDED} DESC"
         )?.use { cursor ->
             val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
             val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
             val artistCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
             val albumCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
+            val albumIdCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
             val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idCol)
+                val albumId = cursor.getLong(albumIdCol)
                 songs += Song(
                     id = id,
                     title = cursor.getString(titleCol) ?: "Unknown title",
                     artist = cursor.getString(artistCol) ?: "Unknown artist",
                     album = cursor.getString(albumCol) ?: "Unknown album",
                     uri = ContentUris.withAppendedId(collection, id),
-                    durationMs = cursor.getLong(durationCol)
+                    durationMs = cursor.getLong(durationCol),
+                    artworkUri = if (albumId > 0) {
+                        Uri.parse("content://media/external/audio/albumart/$albumId")
+                    } else null
                 )
             }
         }
