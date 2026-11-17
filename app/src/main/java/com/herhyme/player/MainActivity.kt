@@ -46,6 +46,7 @@ import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.TrendingUp
@@ -75,10 +76,14 @@ import androidx.media3.session.SessionToken
 import coil.compose.AsyncImage
 import com.google.common.util.concurrent.MoreExecutors
 
-private val AppBackground = Color(0xFF100E14)
-private val PanelColor = Color(0xFF211E29)
-private val AccentColor = Color(0xFFD0B2FF)
-private val MutedText = Color(0xFFB9B3C2)
+private var AppBackground by mutableStateOf(Color(0xFF100E14))
+private var PanelColor by mutableStateOf(Color(0xFF211E29))
+private var AccentColor by mutableStateOf(Color(0xFFD0B2FF))
+private var MutedText by mutableStateOf(Color(0xFFB9B3C2))
+private var showArtwork by mutableStateOf(true)
+private var showAlbumName by mutableStateOf(true)
+private var showSongDuration by mutableStateOf(false)
+private var showFolderPaths by mutableStateOf(true)
 
 class MainActivity : ComponentActivity() {
     private var songs by mutableStateOf<List<Song>>(emptyList())
@@ -108,7 +113,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        favoriteSongIds = getSharedPreferences("herhyme_preferences", Context.MODE_PRIVATE)
+        val preferences = getSharedPreferences("herhyme_preferences", Context.MODE_PRIVATE)
+        applySavedSettings(preferences)
+        favoriteSongIds = preferences
             .getStringSet("favorite_song_ids", emptySet())
             ?.mapNotNull { it.toLongOrNull() }
             ?.toSet() ?: emptySet()
@@ -322,6 +329,7 @@ private fun HerhymeScreen(
                             )
                             "Songs" -> SongsContent(songs = filteredSongs, onSongSelected = onSongSelected)
                             "Folders" -> FoldersContent(songs = filteredSongs, onSongSelected = onSongSelected)
+                            "Settings" -> SettingsContent()
                             "Favorites" -> FavoritesContent(
                                 songs = songs.filter { favoriteSongIds.contains(it.id) },
                                 onSongSelected = onSongSelected
@@ -627,7 +635,7 @@ private fun AlbumArtwork(song: Song, modifier: Modifier = Modifier) {
         modifier = modifier.clip(RoundedCornerShape(16.dp)).background(Color(0xFF302A3A)),
         contentAlignment = Alignment.Center
     ) {
-        if (song.artworkUri != null) {
+        if (showArtwork && song.artworkUri != null) {
             AsyncImage(
                 model = song.artworkUri,
                 contentDescription = "Album artwork for ${song.title}",
@@ -725,7 +733,7 @@ private fun NowPlayingScreen(
             Spacer(Modifier.weight(1f))
         }
         Spacer(Modifier.weight(1f))
-        AlbumArtwork(song, Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(24.dp)))
+        if (showArtwork) AlbumArtwork(song, Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(24.dp)))
         Spacer(Modifier.height(30.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -773,7 +781,7 @@ private fun NowPlayingScreen(
             }
         }
         Spacer(Modifier.weight(1f))
-        Text(song.album.ifBlank { "Unknown album" }, color = MutedText, fontSize = 12.sp, maxLines = 1)
+        if (showAlbumName) Text(song.album.ifBlank { "Unknown album" }, color = MutedText, fontSize = 12.sp, maxLines = 1)
         Spacer(Modifier.height(12.dp))
     }
 }
@@ -794,6 +802,7 @@ private fun BottomNavigation(selectedTab: String, onSelect: (String) -> Unit) {
         NavItem("Songs", Icons.Default.LibraryMusic, selectedTab == "Songs") { onSelect("Songs") }
         NavItem("Folders", Icons.Default.Folder, selectedTab == "Folders") { onSelect("Folders") }
         NavItem("Playlists", Icons.Default.QueueMusic, selectedTab == "Playlists") { onSelect("Playlists") }
+        NavItem("Settings", Icons.Default.Settings, selectedTab == "Settings") { onSelect("Settings") }
     }
 }
 
@@ -805,5 +814,226 @@ private fun NavItem(label: String, icon: androidx.compose.ui.graphics.vector.Ima
     ) {
         Icon(icon, contentDescription = label, tint = if (selected) AccentColor else MutedText, modifier = Modifier.size(24.dp))
         Text(label, color = if (selected) Color.White else MutedText, fontSize = 12.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
+    }
+}
+
+
+private fun applySavedSettings(preferences: android.content.SharedPreferences) {
+    showArtwork = preferences.getBoolean("setting_show_artwork", true)
+    showAlbumName = preferences.getBoolean("setting_show_album_name", true)
+    showSongDuration = preferences.getBoolean("setting_show_song_duration", false)
+    showFolderPaths = preferences.getBoolean("setting_show_folder_paths", true)
+    val theme = preferences.getString("setting_theme", "Dark") ?: "Dark"
+    val accent = preferences.getString("setting_accent", "Lavender") ?: "Lavender"
+    applyTheme(theme)
+    applyAccent(accent)
+}
+
+private fun applyTheme(theme: String) {
+    when (theme) {
+        "AMOLED" -> {
+            AppBackground = Color.Black
+            PanelColor = Color(0xFF111111)
+            MutedText = Color(0xFFB0B0B0)
+        }
+        "Light" -> {
+            AppBackground = Color(0xFFF5F2F8)
+            PanelColor = Color(0xFFE8E1EF)
+            MutedText = Color(0xFF625B6B)
+        }
+        else -> {
+            AppBackground = Color(0xFF100E14)
+            PanelColor = Color(0xFF211E29)
+            MutedText = Color(0xFFB9B3C2)
+        }
+    }
+}
+
+private fun applyAccent(accent: String) {
+    AccentColor = when (accent) {
+        "Blue" -> Color(0xFF80BFFF)
+        "Mint" -> Color(0xFF80E0C0)
+        "Rose" -> Color(0xFFFF9EBC)
+        "Amber" -> Color(0xFFFFC66D)
+        else -> Color(0xFFD0B2FF)
+    }
+}
+
+@Composable
+private fun SettingsContent() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val preferences = remember { context.getSharedPreferences("herhyme_preferences", Context.MODE_PRIVATE) }
+    var expandedSection by remember { mutableStateOf("Themes & Colors") }
+    var theme by remember { mutableStateOf(preferences.getString("setting_theme", "Dark") ?: "Dark") }
+    var accent by remember { mutableStateOf(preferences.getString("setting_accent", "Lavender") ?: "Lavender") }
+    var artwork by remember { mutableStateOf(showArtwork) }
+    var albumName by remember { mutableStateOf(showAlbumName) }
+    var duration by remember { mutableStateOf(showSongDuration) }
+    var folderPaths by remember { mutableStateOf(showFolderPaths) }
+
+    fun saveBoolean(key: String, value: Boolean) {
+        preferences.edit().putBoolean(key, value).apply()
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Column(Modifier.padding(start = 4.dp, bottom = 4.dp)) {
+                Text("Settings", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                Text("Make Herhyme feel like yours", color = MutedText, fontSize = 13.sp)
+            }
+        }
+        item {
+            SettingsSection("Themes & Colors", "Appearance, theme and accent colors", expandedSection == "Themes & Colors", { expandedSection = if (expandedSection == "Themes & Colors") "" else "Themes & Colors" }) {
+                SettingsChoiceRow("Theme", listOf("Dark", "AMOLED", "Light"), theme) { selected ->
+                    theme = selected
+                    preferences.edit().putString("setting_theme", selected).apply()
+                    applyTheme(selected)
+                }
+                SettingsChoiceRow("Accent color", listOf("Lavender", "Blue", "Mint", "Rose", "Amber"), accent) { selected ->
+                    accent = selected
+                    preferences.edit().putString("setting_accent", selected).apply()
+                    applyAccent(selected)
+                }
+            }
+        }
+        item {
+            SettingsSection("Now Playing", "Customise the player screen", expandedSection == "Now Playing", { expandedSection = if (expandedSection == "Now Playing") "" else "Now Playing" }) {
+                SettingsSwitchRow("Show album artwork", "Display cover art in the player", artwork) {
+                    artwork = it
+                    showArtwork = it
+                    saveBoolean("setting_show_artwork", it)
+                }
+                SettingsSwitchRow("Show album name", "Display the album below playback controls", albumName) {
+                    albumName = it
+                    showAlbumName = it
+                    saveBoolean("setting_show_album_name", it)
+                }
+            }
+        }
+        item {
+            SettingsSection("Library", "Choose what appears in your music library", expandedSection == "Library", { expandedSection = if (expandedSection == "Library") "" else "Library" }) {
+                SettingsSwitchRow("Show song duration", "Display track length in the Songs grid", duration) {
+                    duration = it
+                    showSongDuration = it
+                    saveBoolean("setting_show_song_duration", it)
+                }
+                SettingsSwitchRow("Show folder paths", "Display the full location under folder names", folderPaths) {
+                    folderPaths = it
+                    showFolderPaths = it
+                    saveBoolean("setting_show_folder_paths", it)
+                }
+            }
+        }
+        item {
+            SettingsSection("Images", "Album art and artwork display", expandedSection == "Images", { expandedSection = if (expandedSection == "Images") "" else "Images" }) {
+                SettingsSwitchRow("Display album artwork", "Use artwork supplied by your local music library", artwork) {
+                    artwork = it
+                    showArtwork = it
+                    saveBoolean("setting_show_artwork", it)
+                }
+            }
+        }
+        item {
+            SettingsSection("Audio", "Playback behaviour", expandedSection == "Audio", { expandedSection = if (expandedSection == "Audio") "" else "Audio" }) {
+                Text("Herhyme currently uses Media3 gapless-capable playback. Additional audio processing controls will be added only when they can be connected to the playback engine.", color = MutedText, fontSize = 12.sp, modifier = Modifier.padding(vertical = 8.dp))
+            }
+        }
+        item {
+            SettingsSection("Equalizer", "Sound enhancement", expandedSection == "Equalizer", { expandedSection = if (expandedSection == "Equalizer") "" else "Equalizer" }) {
+                Text("Open your device's supported audio effects panel to adjust equalizer settings.", color = MutedText, fontSize = 12.sp)
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(PanelColor)
+                        .clickable {
+                            val intent = android.content.Intent(android.media.audiofx.AudioEffect.ACTION_DISPLAY_AUDIO_EFFECT_CONTROL_PANEL).apply {
+                                putExtra(android.media.audiofx.AudioEffect.EXTRA_PACKAGE_NAME, context.packageName)
+                                putExtra(android.media.audiofx.AudioEffect.EXTRA_CONTENT_TYPE, android.media.audiofx.AudioEffect.CONTENT_TYPE_MUSIC)
+                            }
+                            runCatching { context.startActivity(intent) }
+                        }.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Open equalizer", color = AccentColor, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+        item {
+            SettingsSection("Playlists", "Playlist storage and transfer", expandedSection == "Playlists", { expandedSection = if (expandedSection == "Playlists") "" else "Playlists" }) {
+                Text("Playlist creation, import and export need the playlist library to be implemented first. This section is reserved for those controls; no inactive actions are shown.", color = MutedText, fontSize = 12.sp)
+            }
+        }
+        item {
+            Text("Herhyme • Settings", color = MutedText, fontSize = 11.sp, modifier = Modifier.padding(vertical = 12.dp))
+        }
+    }
+}
+
+@Composable
+private fun SettingsSection(
+    title: String,
+    subtitle: String,
+    expanded: Boolean,
+    content: @Composable Column.() -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(PanelColor)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 14.dp)
+        ) {
+            Text(title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, color = MutedText, fontSize = 11.sp)
+        }
+        if (expanded) {
+            Column(modifier = Modifier.padding(start = 14.dp, end = 14.dp, bottom = 14.dp), content = content)
+        }
+    }
+}
+
+@Composable
+private fun SettingsChoiceRow(
+    label: String,
+    choices: List<String>,
+    selected: String,
+    onSelected: (String) -> Unit
+) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        Text(label, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        Spacer(Modifier.height(8.dp))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            items(choices) { choice ->
+                val active = choice == selected
+                Box(
+                    modifier = Modifier.clip(RoundedCornerShape(50)).background(if (active) AccentColor else AppBackground)
+                        .clickable { onSelected(choice) }.padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Text(choice, color = if (active) AppBackground else MutedText, fontSize = 11.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsSwitchRow(
+    title: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            Text(description, color = MutedText, fontSize = 11.sp)
+        }
+        androidx.compose.material3.Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
