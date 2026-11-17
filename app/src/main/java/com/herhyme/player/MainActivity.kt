@@ -2,6 +2,7 @@ package com.herhyme.player
 
 import android.Manifest
 import android.content.ComponentName
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -32,6 +33,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
@@ -86,6 +88,7 @@ class MainActivity : ComponentActivity() {
     private var playbackDuration by mutableStateOf(0L)
     private var repeatMode by mutableIntStateOf(Player.REPEAT_MODE_OFF)
     private var shuffleEnabled by mutableStateOf(false)
+    private var favoriteSongIds by mutableStateOf<Set<Long>>(emptySet())
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(playing: Boolean) {
@@ -104,6 +107,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        favoriteSongIds = getSharedPreferences("herhyme_preferences", Context.MODE_PRIVATE)
+            .getStringSet("favorite_song_ids", emptySet())
+            ?.mapNotNull { it.toLongOrNull() }
+            ?.toSet() ?: emptySet()
         requestMusicPermission()
         connectController()
         setContent {
@@ -119,6 +126,8 @@ class MainActivity : ComponentActivity() {
                 durationMs = playbackDuration,
                 repeatMode = repeatMode,
                 shuffleEnabled = shuffleEnabled,
+                favoriteSongIds = favoriteSongIds,
+                onToggleFavorite = { toggleFavorite(it) },
                 onSeek = { controller?.seekTo(it) },
                 onToggleShuffle = { toggleShuffle() },
                 onCycleRepeat = { cycleRepeat() },
@@ -169,6 +178,34 @@ class MainActivity : ComponentActivity() {
         mediaController.setMediaItems(queue, startIndex, 0L)
         mediaController.prepare()
         mediaController.play()
+    }
+
+    private fun toggleFavorite(song: Song) {
+        val updated = favoriteSongIds.toMutableSet()
+        if (!updated.add(song.id)) updated.remove(song.id)
+        favoriteSongIds = updated.toSet()
+        getSharedPreferences("herhyme_preferences", Context.MODE_PRIVATE)
+            .edit()
+            .putStringSet("favorite_song_ids", favoriteSongIds.map { it.toString() }.toSet())
+            .apply()
+    }
+
+    private fun playShuffledSongs() {
+        val player = controller ?: return
+        if (songs.isEmpty()) return
+        val shuffledSongs = songs.shuffled()
+        val queue = shuffledSongs.map { item ->
+            MediaItem.Builder()
+                .setUri(item.uri)
+                .setMediaId(item.id.toString())
+                .build()
+        }
+        player.shuffleModeEnabled = false
+        player.setMediaItems(queue, 0, 0L)
+        currentSong = shuffledSongs.first()
+        player.prepare()
+        player.play()
+        shuffleEnabled = false
     }
 
     private fun updatePlaybackProgress() {
@@ -225,6 +262,8 @@ private fun HerhymeScreen(
     durationMs: Long,
     repeatMode: Int,
     shuffleEnabled: Boolean,
+    favoriteSongIds: Set<Long>,
+    onToggleFavorite: (Song) -> Unit,
     onSeek: (Long) -> Unit,
     onToggleShuffle: () -> Unit,
     onCycleRepeat: () -> Unit,
@@ -256,6 +295,8 @@ private fun HerhymeScreen(
                     durationMs = durationMs,
                     repeatMode = repeatMode,
                     shuffleEnabled = shuffleEnabled,
+                    isFavorite = favoriteSongIds.contains(currentSong.id),
+                    onToggleFavorite = { onToggleFavorite(currentSong) },
                     onClose = { showNowPlaying = false },
                     onTogglePlayback = onTogglePlayback,
                     onNext = onNext,
@@ -272,9 +313,15 @@ private fun HerhymeScreen(
                             "Home" -> HomeContent(
                                 songs = filteredSongs,
                                 onSongSelected = onSongSelected,
-                                onShowAll = { selectedTab = "Songs" }
+                                onShowAll = { selectedTab = "Songs" },
+                                onFavorites = { selectedTab = "Favorites" },
+                                onShuffle = { playShuffledSongs() }
                             )
                             "Songs" -> SongsContent(songs = filteredSongs, onSongSelected = onSongSelected)
+                            "Favorites" -> FavoritesContent(
+                                songs = songs.filter { favoriteSongIds.contains(it.id) },
+                                onSongSelected = onSongSelected
+                            )
                             else -> PlaylistsContent()
                         }
                     }
@@ -332,7 +379,9 @@ private fun SearchBar(searchText: String, onSearchChange: (String) -> Unit) {
 private fun HomeContent(
     songs: List<Song>,
     onSongSelected: (Song) -> Unit,
-    onShowAll: () -> Unit
+    onShowAll: () -> Unit,
+    onFavorites: () -> Unit,
+    onShuffle: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -344,10 +393,8 @@ private fun HomeContent(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Shortcut(Icons.Default.History, "History", Color(0xFF49336E))
-                Shortcut(Icons.Default.Favorite, "Favorites", Color(0xFF713A32))
-                Shortcut(Icons.Default.TrendingUp, "Most played", Color(0xFF46520C))
-                Shortcut(Icons.Default.Shuffle, "Shuffle", Color(0xFF075C61))
+                Shortcut(Icons.Default.Favorite, "Favorites", Color(0xFF713A32), onFavorites)
+                Shortcut(Icons.Default.Shuffle, "Shuffle", Color(0xFF075C61), onShuffle)
             }
         }
         item {
@@ -373,8 +420,16 @@ private fun HomeContent(
 }
 
 @Composable
-private fun Shortcut(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, color: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(76.dp)) {
+private fun Shortcut(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    color: Color,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.width(76.dp).clickable(onClick = onClick)
+    ) {
         Box(
             modifier = Modifier.size(62.dp).clip(CircleShape).background(color),
             contentAlignment = Alignment.Center
@@ -401,6 +456,36 @@ private fun RecentSongCard(song: Song, onClick: () -> Unit) {
         Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
             Text(song.title, color = Color.White, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(song.artist, color = MutedText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+@Composable
+private fun FavoritesContent(songs: List<Song>, onSongSelected: (Song) -> Unit) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Favorites", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+            Text("${songs.size} tracks", color = MutedText, fontSize = 12.sp)
+        }
+        if (songs.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.FavoriteBorder, contentDescription = null, tint = AccentColor, modifier = Modifier.size(42.dp))
+                    Spacer(Modifier.height(12.dp))
+                    Text("No favorites yet", color = Color.White, fontSize = 17.sp)
+                    Text("Tap the heart in Now Playing to save a song here.", color = MutedText, fontSize = 12.sp)
+                }
+            }
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(songs, key = { it.id }) { song ->
+                    RecentSongCard(song = song, onClick = { onSongSelected(song) })
+                }
+            }
         }
     }
 }
@@ -522,6 +607,8 @@ private fun NowPlayingScreen(
     durationMs: Long,
     repeatMode: Int,
     shuffleEnabled: Boolean,
+    isFavorite: Boolean,
+    onToggleFavorite: () -> Unit,
     onClose: () -> Unit,
     onTogglePlayback: () -> Unit,
     onNext: () -> Unit,
@@ -552,6 +639,14 @@ private fun NowPlayingScreen(
                 Text(song.title, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(song.artist, color = MutedText, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            IconButton(onClick = onToggleFavorite) {
+                Icon(
+                    if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
+                    tint = if (isFavorite) Color(0xFFFF6B81) else MutedText,
+                    modifier = Modifier.size(27.dp)
+                )
             }
         }
         Spacer(Modifier.height(18.dp))
