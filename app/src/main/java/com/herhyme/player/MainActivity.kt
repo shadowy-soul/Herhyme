@@ -38,6 +38,9 @@ import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.RepeatOne
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
@@ -47,6 +50,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -58,6 +62,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.width
 import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
@@ -77,6 +82,10 @@ class MainActivity : ComponentActivity() {
     private var controller: MediaController? = null
     private var currentSong by mutableStateOf<Song?>(null)
     private var isPlaying by mutableStateOf(false)
+    private var playbackPosition by mutableStateOf(0L)
+    private var playbackDuration by mutableStateOf(0L)
+    private var repeatMode by mutableIntStateOf(Player.REPEAT_MODE_OFF)
+    private var shuffleEnabled by mutableStateOf(false)
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(playing: Boolean) {
@@ -105,7 +114,15 @@ class MainActivity : ComponentActivity() {
                 onSongSelected = { song -> playSong(song) },
                 onTogglePlayback = { togglePlayback() },
                 onNext = { controller?.seekToNextMediaItem() },
-                onPrevious = { controller?.seekToPreviousMediaItem() }
+                onPrevious = { controller?.seekToPreviousMediaItem() },
+                positionMs = playbackPosition,
+                durationMs = playbackDuration,
+                repeatMode = repeatMode,
+                shuffleEnabled = shuffleEnabled,
+                onSeek = { controller?.seekTo(it) },
+                onToggleShuffle = { toggleShuffle() },
+                onCycleRepeat = { cycleRepeat() },
+                onProgressTick = { updatePlaybackProgress() }
             )
         }
     }
@@ -135,6 +152,7 @@ class MainActivity : ComponentActivity() {
             controller?.addListener(playerListener)
             isPlaying = controller?.isPlaying == true
             currentSong = songs.firstOrNull { it.id.toString() == controller?.currentMediaItem?.mediaId }
+            updatePlaybackProgress()
         }, MoreExecutors.directExecutor())
     }
 
@@ -151,6 +169,31 @@ class MainActivity : ComponentActivity() {
         mediaController.setMediaItems(queue, startIndex, 0L)
         mediaController.prepare()
         mediaController.play()
+    }
+
+    private fun updatePlaybackProgress() {
+        val player = controller ?: return
+        playbackPosition = player.currentPosition.coerceAtLeast(0L)
+        playbackDuration = player.duration.takeIf { it > 0L && it != androidx.media3.common.C.TIME_UNSET }
+            ?: (currentSong?.durationMs ?: 0L)
+        repeatMode = player.repeatMode
+        shuffleEnabled = player.shuffleModeEnabled
+    }
+
+    private fun toggleShuffle() {
+        val player = controller ?: return
+        player.shuffleModeEnabled = !player.shuffleModeEnabled
+        shuffleEnabled = player.shuffleModeEnabled
+    }
+
+    private fun cycleRepeat() {
+        val player = controller ?: return
+        player.repeatMode = when (player.repeatMode) {
+            Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+            Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+            else -> Player.REPEAT_MODE_OFF
+        }
+        repeatMode = player.repeatMode
     }
 
     private fun togglePlayback() {
@@ -177,10 +220,26 @@ private fun HerhymeScreen(
     onSongSelected: (Song) -> Unit,
     onTogglePlayback: () -> Unit,
     onNext: () -> Unit,
-    onPrevious: () -> Unit
+    onPrevious: () -> Unit,
+    positionMs: Long,
+    durationMs: Long,
+    repeatMode: Int,
+    shuffleEnabled: Boolean,
+    onSeek: (Long) -> Unit,
+    onToggleShuffle: () -> Unit,
+    onCycleRepeat: () -> Unit,
+    onProgressTick: () -> Unit
 ) {
     var selectedTab by remember { mutableStateOf("Home") }
     var searchText by remember { mutableStateOf("") }
+    var showNowPlaying by remember { mutableStateOf(false) }
+
+    LaunchedEffect(currentSong, isPlaying, showNowPlaying) {
+        while (currentSong != null) {
+            onProgressTick()
+            delay(500)
+        }
+    }
     val filteredSongs = songs.filter {
         it.title.contains(searchText, true) ||
             it.artist.contains(searchText, true) ||
@@ -189,31 +248,50 @@ private fun HerhymeScreen(
 
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = AppBackground) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Column(modifier = Modifier.weight(1f)) {
-                    SearchBar(searchText = searchText, onSearchChange = { searchText = it })
-                    when (selectedTab) {
-                        "Home" -> HomeContent(
-                            songs = filteredSongs,
-                            onSongSelected = onSongSelected,
-                            onShowAll = { selectedTab = "Songs" }
-                        )
-                        "Songs" -> SongsContent(songs = filteredSongs, onSongSelected = onSongSelected)
-                        else -> PlaylistsContent()
+            if (showNowPlaying && currentSong != null) {
+                NowPlayingScreen(
+                    song = currentSong,
+                    isPlaying = isPlaying,
+                    positionMs = positionMs,
+                    durationMs = durationMs,
+                    repeatMode = repeatMode,
+                    shuffleEnabled = shuffleEnabled,
+                    onClose = { showNowPlaying = false },
+                    onTogglePlayback = onTogglePlayback,
+                    onNext = onNext,
+                    onPrevious = onPrevious,
+                    onSeek = onSeek,
+                    onToggleShuffle = onToggleShuffle,
+                    onCycleRepeat = onCycleRepeat
+                )
+            } else {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        SearchBar(searchText = searchText, onSearchChange = { searchText = it })
+                        when (selectedTab) {
+                            "Home" -> HomeContent(
+                                songs = filteredSongs,
+                                onSongSelected = onSongSelected,
+                                onShowAll = { selectedTab = "Songs" }
+                            )
+                            "Songs" -> SongsContent(songs = filteredSongs, onSongSelected = onSongSelected)
+                            else -> PlaylistsContent()
+                        }
                     }
-                }
 
-                if (currentSong != null) {
-                    MiniPlayer(
-                        song = currentSong,
-                        isPlaying = isPlaying,
-                        onTogglePlayback = onTogglePlayback,
-                        onNext = onNext,
-                        onPrevious = onPrevious
-                    )
-                }
+                    if (currentSong != null) {
+                        MiniPlayer(
+                            song = currentSong,
+                            isPlaying = isPlaying,
+                            onTogglePlayback = onTogglePlayback,
+                            onNext = onNext,
+                            onPrevious = onPrevious,
+                            onOpen = { showNowPlaying = true }
+                        )
+                    }
 
-                BottomNavigation(selectedTab = selectedTab, onSelect = { selectedTab = it })
+                    BottomNavigation(selectedTab = selectedTab, onSelect = { selectedTab = it })
+                }
             }
         }
     }
@@ -402,11 +480,12 @@ private fun MiniPlayer(
     isPlaying: Boolean,
     onTogglePlayback: () -> Unit,
     onNext: () -> Unit,
-    onPrevious: () -> Unit
+    onPrevious: () -> Unit,
+    onOpen: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth().background(PanelColor)) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+            modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             AlbumArtwork(song, Modifier.size(54.dp))
@@ -432,6 +511,94 @@ private fun MiniPlayer(
         }
         Box(Modifier.fillMaxWidth().height(3.dp).background(AccentColor))
     }
+}
+
+
+@Composable
+private fun NowPlayingScreen(
+    song: Song,
+    isPlaying: Boolean,
+    positionMs: Long,
+    durationMs: Long,
+    repeatMode: Int,
+    shuffleEnabled: Boolean,
+    onClose: () -> Unit,
+    onTogglePlayback: () -> Unit,
+    onNext: () -> Unit,
+    onPrevious: () -> Unit,
+    onSeek: (Long) -> Unit,
+    onToggleShuffle: () -> Unit,
+    onCycleRepeat: () -> Unit
+) {
+    val safeDuration = durationMs.coerceAtLeast(0L)
+    val safePosition = positionMs.coerceIn(0L, safeDuration.coerceAtLeast(1L))
+    Column(
+        modifier = Modifier.fillMaxSize().background(AppBackground).padding(horizontal = 22.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onClose) {
+                Icon(Icons.Default.Close, contentDescription = "Close player", tint = Color.White)
+            }
+            Spacer(Modifier.weight(1f))
+            Text("NOW PLAYING", color = MutedText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.weight(1f))
+            IconButton(onClick = {}) {
+                Icon(Icons.Default.QueueMusic, contentDescription = "Queue", tint = MutedText)
+            }
+        }
+        Spacer(Modifier.weight(1f))
+        AlbumArtwork(song, Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(24.dp)))
+        Spacer(Modifier.height(30.dp))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(song.title, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(song.artist, color = MutedText, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            IconButton(onClick = {}) {
+                Icon(Icons.Default.Favorite, contentDescription = "Favorite (coming soon)", tint = MutedText)
+            }
+        }
+        Spacer(Modifier.height(18.dp))
+        Slider(
+            value = if (safeDuration > 0L) safePosition.toFloat() / safeDuration.toFloat() else 0f,
+            onValueChange = { fraction -> if (safeDuration > 0L) onSeek((fraction * safeDuration).toLong()) },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(formatTime(safePosition), color = MutedText, fontSize = 12.sp)
+            Text(formatTime(safeDuration), color = MutedText, fontSize = 12.sp)
+        }
+        Spacer(Modifier.height(18.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onToggleShuffle) {
+                Icon(Icons.Default.Shuffle, contentDescription = "Shuffle", tint = if (shuffleEnabled) AccentColor else MutedText)
+            }
+            IconButton(onClick = onPrevious) {
+                Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", tint = Color.White, modifier = Modifier.size(34.dp))
+            }
+            IconButton(onClick = onTogglePlayback, modifier = Modifier.size(68.dp).clip(CircleShape).background(AccentColor)) {
+                Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (isPlaying) "Pause" else "Play", tint = AppBackground, modifier = Modifier.size(42.dp))
+            }
+            IconButton(onClick = onNext) {
+                Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = Color.White, modifier = Modifier.size(34.dp))
+            }
+            IconButton(onClick = onCycleRepeat) {
+                Icon(if (repeatMode == Player.REPEAT_MODE_ONE) Icons.Default.RepeatOne else Icons.Default.Repeat,
+                    contentDescription = "Repeat", tint = if (repeatMode == Player.REPEAT_MODE_OFF) MutedText else AccentColor)
+            }
+        }
+        Spacer(Modifier.weight(1f))
+        Text(song.album.ifBlank { "Unknown album" }, color = MutedText, fontSize = 12.sp, maxLines = 1)
+        Spacer(Modifier.height(12.dp))
+    }
+}
+
+private fun formatTime(milliseconds: Long): String {
+    val totalSeconds = (milliseconds / 1000L).coerceAtLeast(0L)
+    return "%d:%02d".format(totalSeconds / 60L, totalSeconds % 60L)
 }
 
 @Composable
