@@ -34,6 +34,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
@@ -320,6 +321,7 @@ private fun HerhymeScreen(
                                 onShuffle = onShuffleSongs
                             )
                             "Songs" -> SongsContent(songs = filteredSongs, onSongSelected = onSongSelected)
+                            "Folders" -> FoldersContent(songs = filteredSongs, onSongSelected = onSongSelected)
                             "Favorites" -> FavoritesContent(
                                 songs = songs.filter { favoriteSongIds.contains(it.id) },
                                 onSongSelected = onSongSelected
@@ -494,6 +496,15 @@ private fun FavoritesContent(songs: List<Song>, onSongSelected: (Song) -> Unit) 
 
 @Composable
 private fun SongsContent(songs: List<Song>, onSongSelected: (Song) -> Unit) {
+    var durationFilter by remember { mutableStateOf("All") }
+    val durationFilteredSongs = songs.filter { song ->
+        when (durationFilter) {
+            "Under 3 min" -> song.durationMs < 180_000L
+            "3–5 min" -> song.durationMs >= 180_000L && song.durationMs <= 300_000L
+            "Over 5 min" -> song.durationMs > 300_000L
+            else -> true
+        }
+    }
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
@@ -501,11 +512,30 @@ private fun SongsContent(songs: List<Song>, onSongSelected: (Song) -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("Your Songs", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
-            Text("${songs.size} tracks", color = MutedText, fontSize = 12.sp)
+            Text("${durationFilteredSongs.size} tracks", color = MutedText, fontSize = 12.sp)
         }
-        if (songs.isEmpty()) {
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(listOf("All", "Under 3 min", "3–5 min", "Over 5 min")) { option ->
+                val selected = durationFilter == option
+                Box(
+                    modifier = Modifier.clip(CircleShape)
+                        .background(if (selected) AccentColor else PanelColor)
+                        .clickable { durationFilter = option }
+                        .padding(horizontal = 14.dp, vertical = 9.dp)
+                ) {
+                    Text(option, color = if (selected) AppBackground else MutedText, fontSize = 12.sp,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
+                }
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        if (durationFilteredSongs.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No songs found", color = MutedText)
+                Text("No songs match this duration", color = MutedText)
             }
         } else {
             LazyVerticalGrid(
@@ -515,7 +545,7 @@ private fun SongsContent(songs: List<Song>, onSongSelected: (Song) -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                items(songs, key = { it.id }) { song ->
+                items(durationFilteredSongs, key = { it.id }) { song ->
                     Column(modifier = Modifier.clickable { onSongSelected(song) }) {
                         AlbumArtwork(song = song, modifier = Modifier.fillMaxWidth().aspectRatio(1f))
                         Spacer(Modifier.height(7.dp))
@@ -524,6 +554,67 @@ private fun SongsContent(songs: List<Song>, onSongSelected: (Song) -> Unit) {
                         Text(song.artist, color = MutedText, fontSize = 10.sp,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FoldersContent(songs: List<Song>, onSongSelected: (Song) -> Unit) {
+    var selectedFolder by remember { mutableStateOf<String?>(null) }
+    val folders = songs.groupBy { it.folderPath }.toSortedMap()
+    val folderSongs = selectedFolder?.let { folders[it].orEmpty() }.orEmpty()
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (selectedFolder != null) {
+                Text("‹", color = AccentColor, fontSize = 30.sp,
+                    modifier = Modifier.clickable { selectedFolder = null }.padding(end = 12.dp))
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(selectedFolder?.substringAfterLast('/') ?: "Music Folders",
+                    color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    if (selectedFolder == null) "${folders.size} folders" else "${folderSongs.size} tracks",
+                    color = MutedText, fontSize = 12.sp
+                )
+            }
+        }
+        if (selectedFolder == null) {
+            if (folders.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("No music folders found", color = MutedText)
+                }
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    items(folders.keys.toList(), key = { it }) { path ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                                .clip(RoundedCornerShape(18.dp)).background(PanelColor)
+                                .clickable { selectedFolder = path }.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Folder, contentDescription = null, tint = AccentColor,
+                                modifier = Modifier.size(34.dp))
+                            Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
+                                Text(path.substringAfterLast('/'), color = Color.White, fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold)
+                                Text(path, color = MutedText, fontSize = 10.sp, maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis)
+                            }
+                            Text("${folders[path]?.size ?: 0}", color = MutedText, fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                items(folderSongs, key = { it.id }) { song ->
+                    RecentSongCard(song = song, onClick = { onSongSelected(song) })
                 }
             }
         }
@@ -701,6 +792,7 @@ private fun BottomNavigation(selectedTab: String, onSelect: (String) -> Unit) {
     ) {
         NavItem("Home", Icons.Default.Home, selectedTab == "Home") { onSelect("Home") }
         NavItem("Songs", Icons.Default.LibraryMusic, selectedTab == "Songs") { onSelect("Songs") }
+        NavItem("Folders", Icons.Default.Folder, selectedTab == "Folders") { onSelect("Folders") }
         NavItem("Playlists", Icons.Default.QueueMusic, selectedTab == "Playlists") { onSelect("Playlists") }
     }
 }
