@@ -543,9 +543,6 @@ private fun NowPlayingScreen(
             Spacer(Modifier.weight(1f))
             Text("NOW PLAYING", color = MutedText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.weight(1f))
-            IconButton(onClick = {}) {
-                Icon(Icons.Default.QueueMusic, contentDescription = "Queue", tint = MutedText)
-            }
         }
         Spacer(Modifier.weight(1f))
         AlbumArtwork(song, Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(24.dp)))
@@ -555,9 +552,6 @@ private fun NowPlayingScreen(
                 Text(song.title, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(song.artist, color = MutedText, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            IconButton(onClick = {}) {
-                Icon(Icons.Default.Favorite, contentDescription = "Favorite (coming soon)", tint = MutedText)
             }
         }
         Spacer(Modifier.height(18.dp))
