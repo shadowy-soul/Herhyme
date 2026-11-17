@@ -977,7 +977,7 @@ private fun SettingsSection(
     title: String,
     subtitle: String,
     expanded: Boolean,
-    content: @Composable Column.() -> Unit
+    content: @Composable () -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(PanelColor)
