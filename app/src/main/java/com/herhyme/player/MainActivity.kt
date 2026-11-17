@@ -80,6 +80,7 @@ private var AppBackground by mutableStateOf(Color(0xFF100E14))
 private var PanelColor by mutableStateOf(Color(0xFF211E29))
 private var AccentColor by mutableStateOf(Color(0xFFD0B2FF))
 private var MutedText by mutableStateOf(Color(0xFFB9B3C2))
+private var PrimaryText by mutableStateOf(PrimaryText)
 private var showArtwork by mutableStateOf(true)
 private var showAlbumName by mutableStateOf(true)
 private var showSongDuration by mutableStateOf(false)
@@ -372,7 +373,7 @@ private fun SearchBar(searchText: String, onSearchChange: (String) -> Unit) {
             value = searchText,
             onValueChange = onSearchChange,
             singleLine = true,
-            textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 16.sp),
+            textStyle = androidx.compose.ui.text.TextStyle(color = PrimaryText, fontSize = 16.sp),
             decorationBox = { inner ->
                 Box {
                     if (searchText.isEmpty()) Text("Search your music", color = MutedText, fontSize = 16.sp)
@@ -415,7 +416,7 @@ private fun HomeContent(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Recently added songs", color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.SemiBold)
+                Text("Recently added songs", color = PrimaryText, fontSize = 21.sp, fontWeight = FontWeight.SemiBold)
                 Text("→", color = AccentColor, fontSize = 28.sp, modifier = Modifier.clickable { onShowAll() })
             }
         }
@@ -446,7 +447,7 @@ private fun Shortcut(
             modifier = Modifier.size(62.dp).clip(CircleShape).background(color),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier.size(30.dp))
+            Icon(icon, contentDescription = label, tint = PrimaryText, modifier = Modifier.size(30.dp))
         }
         Spacer(Modifier.height(7.dp))
         Text(label, color = MutedText, fontSize = 11.sp, maxLines = 1)
@@ -466,7 +467,7 @@ private fun RecentSongCard(song: Song, onClick: () -> Unit) {
     ) {
         AlbumArtwork(song = song, modifier = Modifier.size(72.dp))
         Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
-            Text(song.title, color = Color.White, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(song.title, color = PrimaryText, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(song.artist, color = MutedText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
@@ -480,7 +481,7 @@ private fun FavoritesContent(songs: List<Song>, onSongSelected: (Song) -> Unit) 
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Favorites", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+            Text("Favorites", color = PrimaryText, fontSize = 23.sp, fontWeight = FontWeight.Bold)
             Text("${songs.size} tracks", color = MutedText, fontSize = 12.sp)
         }
         if (songs.isEmpty()) {
@@ -488,7 +489,7 @@ private fun FavoritesContent(songs: List<Song>, onSongSelected: (Song) -> Unit) 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(Icons.Default.FavoriteBorder, contentDescription = null, tint = AccentColor, modifier = Modifier.size(42.dp))
                     Spacer(Modifier.height(12.dp))
-                    Text("No favorites yet", color = Color.White, fontSize = 17.sp)
+                    Text("No favorites yet", color = PrimaryText, fontSize = 17.sp)
                     Text("Tap the heart in Now Playing to save a song here.", color = MutedText, fontSize = 12.sp)
                 }
             }
@@ -519,7 +520,7 @@ private fun SongsContent(songs: List<Song>, onSongSelected: (Song) -> Unit) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Your Songs", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+            Text("Your Songs", color = PrimaryText, fontSize = 23.sp, fontWeight = FontWeight.Bold)
             Text("${durationFilteredSongs.size} tracks", color = MutedText, fontSize = 12.sp)
         }
         LazyRow(
@@ -557,7 +558,7 @@ private fun SongsContent(songs: List<Song>, onSongSelected: (Song) -> Unit) {
                     Column(modifier = Modifier.clickable { onSongSelected(song) }) {
                         AlbumArtwork(song = song, modifier = Modifier.fillMaxWidth().aspectRatio(1f))
                         Spacer(Modifier.height(7.dp))
-                        Text(song.title, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium,
+                        Text(song.title, color = PrimaryText, fontSize = 12.sp, fontWeight = FontWeight.Medium,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(song.artist, color = MutedText, fontSize = 10.sp,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -585,7 +586,7 @@ private fun FoldersContent(songs: List<Song>, onSongSelected: (Song) -> Unit) {
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(selectedFolder?.substringAfterLast('/') ?: "Music Folders",
-                    color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+                    color = PrimaryText, fontSize = 23.sp, fontWeight = FontWeight.Bold)
                 Text(
                     if (selectedFolder == null) "${folders.size} folders" else "${folderSongs.size} tracks",
                     color = MutedText, fontSize = 12.sp
@@ -609,7 +610,7 @@ private fun FoldersContent(songs: List<Song>, onSongSelected: (Song) -> Unit) {
                             Icon(Icons.Default.Folder, contentDescription = null, tint = AccentColor,
                                 modifier = Modifier.size(34.dp))
                             Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
-                                Text(path.substringAfterLast('/'), color = Color.White, fontSize = 15.sp,
+                                Text(path.substringAfterLast('/'), color = PrimaryText, fontSize = 15.sp,
                                     fontWeight = FontWeight.SemiBold)
                                 Text(path, color = MutedText, fontSize = 10.sp, maxLines = 1,
                                     overflow = TextOverflow.Ellipsis)
@@ -654,7 +655,7 @@ private fun PlaylistsContent() {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(Icons.Default.QueueMusic, contentDescription = null, tint = AccentColor, modifier = Modifier.size(48.dp))
             Spacer(Modifier.height(12.dp))
-            Text("Playlists are coming next", color = Color.White, fontSize = 18.sp)
+            Text("Playlists are coming next", color = PrimaryText, fontSize = 18.sp)
             Text("Your music collections will live here.", color = MutedText, fontSize = 13.sp)
         }
     }
@@ -676,12 +677,12 @@ private fun MiniPlayer(
         ) {
             AlbumArtwork(song, Modifier.size(54.dp))
             Column(modifier = Modifier.weight(1f).padding(start = 10.dp)) {
-                Text(song.title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                Text(song.title, color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(song.artist, color = MutedText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             IconButton(onClick = onPrevious) {
-                Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", tint = Color.White)
+                Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", tint = PrimaryText)
             }
             IconButton(onClick = onTogglePlayback) {
                 Icon(
@@ -692,7 +693,7 @@ private fun MiniPlayer(
                 )
             }
             IconButton(onClick = onNext) {
-                Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = Color.White)
+                Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = PrimaryText)
             }
         }
         Box(Modifier.fillMaxWidth().height(3.dp).background(AccentColor))
@@ -726,7 +727,7 @@ private fun NowPlayingScreen(
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onClose) {
-                Icon(Icons.Default.Close, contentDescription = "Close player", tint = Color.White)
+                Icon(Icons.Default.Close, contentDescription = "Close player", tint = PrimaryText)
             }
             Spacer(Modifier.weight(1f))
             Text("NOW PLAYING", color = MutedText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
@@ -737,7 +738,7 @@ private fun NowPlayingScreen(
         Spacer(Modifier.height(30.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(song.title, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold,
+                Text(song.title, color = PrimaryText, fontSize = 22.sp, fontWeight = FontWeight.Bold,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(song.artist, color = MutedText, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
@@ -766,14 +767,14 @@ private fun NowPlayingScreen(
                 Icon(Icons.Default.Shuffle, contentDescription = "Shuffle", tint = if (shuffleEnabled) AccentColor else MutedText)
             }
             IconButton(onClick = onPrevious) {
-                Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", tint = Color.White, modifier = Modifier.size(34.dp))
+                Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", tint = PrimaryText, modifier = Modifier.size(34.dp))
             }
             IconButton(onClick = onTogglePlayback, modifier = Modifier.size(68.dp).clip(CircleShape).background(AccentColor)) {
                 Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = if (isPlaying) "Pause" else "Play", tint = AppBackground, modifier = Modifier.size(42.dp))
             }
             IconButton(onClick = onNext) {
-                Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = Color.White, modifier = Modifier.size(34.dp))
+                Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = PrimaryText, modifier = Modifier.size(34.dp))
             }
             IconButton(onClick = onCycleRepeat) {
                 Icon(if (repeatMode == Player.REPEAT_MODE_ONE) Icons.Default.RepeatOne else Icons.Default.Repeat,
@@ -809,11 +810,11 @@ private fun BottomNavigation(selectedTab: String, onSelect: (String) -> Unit) {
 @Composable
 private fun NavItem(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, selected: Boolean, onClick: () -> Unit) {
     Column(
-        modifier = Modifier.clip(RoundedCornerShape(18.dp)).clickable(onClick = onClick).padding(horizontal = 18.dp, vertical = 5.dp),
+        modifier = Modifier.clip(RoundedCornerShape(18.dp)).clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 5.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(icon, contentDescription = label, tint = if (selected) AccentColor else MutedText, modifier = Modifier.size(24.dp))
-        Text(label, color = if (selected) Color.White else MutedText, fontSize = 12.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
+        Text(label, color = if (selected) PrimaryText else MutedText, fontSize = 10.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
     }
 }
 
@@ -840,11 +841,13 @@ private fun applyTheme(theme: String) {
             AppBackground = Color(0xFFF5F2F8)
             PanelColor = Color(0xFFE8E1EF)
             MutedText = Color(0xFF625B6B)
+            PrimaryText = Color(0xFF211B28)
         }
         else -> {
             AppBackground = Color(0xFF100E14)
             PanelColor = Color(0xFF211E29)
             MutedText = Color(0xFFB9B3C2)
+            PrimaryText = Color.White
         }
     }
 }
@@ -882,7 +885,7 @@ private fun SettingsContent() {
     ) {
         item {
             Column(Modifier.padding(start = 4.dp, bottom = 4.dp)) {
-                Text("Settings", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                Text("Settings", color = PrimaryText, fontSize = 26.sp, fontWeight = FontWeight.Bold)
                 Text("Make Herhyme feel like yours", color = MutedText, fontSize = 13.sp)
             }
         }
@@ -987,7 +990,7 @@ private fun SettingsSection(
             modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
                 .padding(horizontal = 16.dp, vertical = 14.dp)
         ) {
-            Text(title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text(title, color = PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             Text(subtitle, color = MutedText, fontSize = 11.sp)
         }
         if (expanded) {
@@ -1004,7 +1007,7 @@ private fun SettingsChoiceRow(
     onSelected: (String) -> Unit
 ) {
     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-        Text(label, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        Text(label, color = PrimaryText, fontSize = 13.sp, fontWeight = FontWeight.Medium)
         Spacer(Modifier.height(8.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
             items(choices) { choice ->
@@ -1032,7 +1035,7 @@ private fun SettingsSwitchRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1f).padding(end = 12.dp)) {
-            Text(title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            Text(title, color = PrimaryText, fontSize = 13.sp, fontWeight = FontWeight.Medium)
             Text(description, color = MutedText, fontSize = 11.sp)
         }
         androidx.compose.material3.Switch(checked = checked, onCheckedChange = onCheckedChange)
