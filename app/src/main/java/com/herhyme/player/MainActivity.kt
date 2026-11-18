@@ -328,8 +328,8 @@ private fun HerhymeScreen(
                                 onFavorites = { selectedTab = "Favorites" },
                                 onShuffle = onShuffleSongs
                             )
-                            "Songs" -> SongsContent(songs = filteredSongs, onSongSelected = onSongSelected)
-                            "Folders" -> FoldersContent(songs = filteredSongs, onSongSelected = onSongSelected)
+                            "Songs" -> SongsContent(songs = filteredSongs, onSongSelected = onSongSelected, showDuration = showSongDuration)
+                            "Folders" -> FoldersContent(songs = filteredSongs, onSongSelected = onSongSelected, showPaths = showFolderPaths)
                             "Settings" -> SettingsContent()
                             "Favorites" -> FavoritesContent(
                                 songs = songs.filter { favoriteSongIds.contains(it.id) },
@@ -504,7 +504,7 @@ private fun FavoritesContent(songs: List<Song>, onSongSelected: (Song) -> Unit) 
 }
 
 @Composable
-private fun SongsContent(songs: List<Song>, onSongSelected: (Song) -> Unit) {
+private fun SongsContent(songs: List<Song>, onSongSelected: (Song) -> Unit, showDuration: Boolean) {
     var durationFilter by remember { mutableStateOf("All") }
     val durationFilteredSongs = songs.filter { song ->
         when (durationFilter) {
@@ -562,6 +562,7 @@ private fun SongsContent(songs: List<Song>, onSongSelected: (Song) -> Unit) {
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(song.artist, color = MutedText, fontSize = 10.sp,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (showDuration) Text(formatTime(song.durationMs), color = MutedText, fontSize = 10.sp)
                     }
                 }
             }
@@ -570,7 +571,7 @@ private fun SongsContent(songs: List<Song>, onSongSelected: (Song) -> Unit) {
 }
 
 @Composable
-private fun FoldersContent(songs: List<Song>, onSongSelected: (Song) -> Unit) {
+private fun FoldersContent(songs: List<Song>, onSongSelected: (Song) -> Unit, showPaths: Boolean) {
     var selectedFolder by remember { mutableStateOf<String?>(null) }
     val folders = songs.groupBy { it.folderPath }.toSortedMap()
     val folderSongs = selectedFolder?.let { folders[it].orEmpty() }.orEmpty()
@@ -612,7 +613,7 @@ private fun FoldersContent(songs: List<Song>, onSongSelected: (Song) -> Unit) {
                             Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
                                 Text(path.substringAfterLast('/'), color = PrimaryText, fontSize = 15.sp,
                                     fontWeight = FontWeight.SemiBold)
-                                Text(path, color = MutedText, fontSize = 10.sp, maxLines = 1,
+                                if (showPaths) Text(path, color = MutedText, fontSize = 10.sp, maxLines = 1,
                                     overflow = TextOverflow.Ellipsis)
                             }
                             Text("${folders[path]?.size ?: 0}", color = MutedText, fontSize = 12.sp)
