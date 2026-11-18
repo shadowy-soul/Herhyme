@@ -15,7 +15,8 @@ class MusicRepository(private val context: Context) {
             MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.ALBUM_ID,
             MediaStore.Audio.Media.DURATION,
-            MediaStore.Audio.Media.DATA
+            MediaStore.Audio.Media.DATA,
+            MediaStore.Audio.Media.DATE_ADDED
         )
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
         val songs = mutableListOf<Song>()
@@ -34,6 +35,7 @@ class MusicRepository(private val context: Context) {
             val albumIdCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
             val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
             val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
+            val dateAddedCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idCol)
@@ -49,7 +51,8 @@ class MusicRepository(private val context: Context) {
                         Uri.parse("content://media/external/audio/albumart/$albumId")
                     } else null,
                     folderPath = cursor.getString(dataCol)?.let { java.io.File(it).parentFile?.absolutePath }
-                        ?: "Unknown folder"
+                        ?: "Unknown folder",
+                    dateAdded = cursor.getLong(dateAddedCol)
                 )
             }
         }
