@@ -66,6 +66,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -324,7 +327,27 @@ private fun HerhymeScreen(
                 )
             } else {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(
+                        modifier = Modifier.weight(1f).pointerInput(selectedTab) {
+                            val swipeTabs = listOf("Home", "Songs", "Folders", "Playlists", "Settings")
+                            var dragTotal = 0f
+                            detectHorizontalDragGestures(
+                                onHorizontalDrag = { change, amount ->
+                                    dragTotal += amount
+                                    change.consume()
+                                },
+                                onDragEnd = {
+                                    val currentIndex = swipeTabs.indexOf(selectedTab).let { if (it < 0) 0 else it }
+                                    if (dragTotal < -70f && currentIndex < swipeTabs.lastIndex) {
+                                        selectedTab = swipeTabs[currentIndex + 1]
+                                    } else if (dragTotal > 70f && currentIndex > 0) {
+                                        selectedTab = swipeTabs[currentIndex - 1]
+                                    }
+                                    dragTotal = 0f
+                                }
+                            )
+                        }
+                    ) {
                         SearchBar(searchText = searchText, onSearchChange = { searchText = it })
                         when (selectedTab) {
                             "Home" -> HomeContent(
@@ -703,7 +726,22 @@ private fun MiniPlayer(
 ) {
     Column(modifier = Modifier.fillMaxWidth().background(PanelColor)) {
         Row(
-            modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(horizontal = 14.dp, vertical = 10.dp),
+            modifier = Modifier.fillMaxWidth()
+                .pointerInput(Unit) {
+                    var dragTotal = 0f
+                    detectVerticalDragGestures(
+                        onVerticalDrag = { change, amount ->
+                            dragTotal += amount
+                            change.consume()
+                        },
+                        onDragEnd = {
+                            if (dragTotal < -45f) onOpen()
+                            dragTotal = 0f
+                        }
+                    )
+                }
+                .clickable(onClick = onOpen)
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             AlbumArtwork(song, Modifier.size(54.dp))
@@ -753,7 +791,21 @@ private fun NowPlayingScreen(
     val safeDuration = durationMs.coerceAtLeast(0L)
     val safePosition = positionMs.coerceIn(0L, safeDuration.coerceAtLeast(1L))
     Column(
-        modifier = Modifier.fillMaxSize().background(AppBackground).padding(horizontal = 22.dp, vertical = 12.dp),
+        modifier = Modifier.fillMaxSize()
+            .pointerInput(Unit) {
+                var dragTotal = 0f
+                detectVerticalDragGestures(
+                    onVerticalDrag = { change, amount ->
+                        dragTotal += amount
+                        change.consume()
+                    },
+                    onDragEnd = {
+                        if (dragTotal > 55f) onClose()
+                        dragTotal = 0f
+                    }
+                )
+            }
+            .background(AppBackground).padding(horizontal = 22.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
