@@ -85,6 +85,7 @@ private var showArtwork by mutableStateOf(true)
 private var showAlbumName by mutableStateOf(true)
 private var showSongDuration by mutableStateOf(false)
 private var showFolderPaths by mutableStateOf(true)
+private var blacklistedFolders by mutableStateOf<Set<String>>(emptySet())
 
 class MainActivity : ComponentActivity() {
     private var songs by mutableStateOf<List<Song>>(emptyList())
@@ -328,9 +329,9 @@ private fun HerhymeScreen(
                                 onFavorites = { selectedTab = "Favorites" },
                                 onShuffle = onShuffleSongs
                             )
-                            "Songs" -> SongsContent(songs = filteredSongs, onSongSelected = onSongSelected, showDuration = showSongDuration)
+                            "Songs" -> SongsContent(songs = filteredSongs.filterNot { blacklistedFolders.contains(it.folderPath) }, onSongSelected = onSongSelected, showDuration = showSongDuration)
                             "Folders" -> FoldersContent(songs = filteredSongs, onSongSelected = onSongSelected, showPaths = showFolderPaths)
-                            "Settings" -> SettingsContent()
+                            "Settings" -> SettingsContent(songs = songs)
                             "Favorites" -> FavoritesContent(
                                 songs = songs.filter { favoriteSongIds.contains(it.id) },
                                 onSongSelected = onSongSelected
@@ -825,6 +826,7 @@ private fun applySavedSettings(preferences: android.content.SharedPreferences) {
     showAlbumName = preferences.getBoolean("setting_show_album_name", true)
     showSongDuration = preferences.getBoolean("setting_show_song_duration", false)
     showFolderPaths = preferences.getBoolean("setting_show_folder_paths", true)
+    blacklistedFolders = preferences.getStringSet("setting_blacklisted_folders", emptySet())?.toSet() ?: emptySet()
     val theme = preferences.getString("setting_theme", "Dark") ?: "Dark"
     val accent = preferences.getString("setting_accent", "Lavender") ?: "Lavender"
     applyTheme(theme)
@@ -864,7 +866,7 @@ private fun applyAccent(accent: String) {
 }
 
 @Composable
-private fun SettingsContent() {
+private fun SettingsContent(songs: List<Song>) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val preferences = remember { context.getSharedPreferences("herhyme_preferences", Context.MODE_PRIVATE) }
     var expandedSection by remember { mutableStateOf("Themes & Colors") }
@@ -874,6 +876,7 @@ private fun SettingsContent() {
     var albumName by remember { mutableStateOf(showAlbumName) }
     var duration by remember { mutableStateOf(showSongDuration) }
     var folderPaths by remember { mutableStateOf(showFolderPaths) }
+    var hiddenFolders by remember { mutableStateOf(blacklistedFolders) }
 
     fun saveBoolean(key: String, value: Boolean) {
         preferences.edit().putBoolean(key, value).apply()
@@ -929,6 +932,21 @@ private fun SettingsContent() {
                     folderPaths = it
                     showFolderPaths = it
                     saveBoolean("setting_show_folder_paths", it)
+                }
+                Spacer(Modifier.height(10.dp))
+                Text("Blacklist folders", color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text("Audio in selected folders will be hidden from the Songs page.", color = MutedText, fontSize = 11.sp)
+                val availableFolders = songs.map { it.folderPath }.distinct().sorted()
+                if (availableFolders.isEmpty()) {
+                    Text("No music folders found yet.", color = MutedText, fontSize = 12.sp, modifier = Modifier.padding(vertical = 8.dp))
+                } else {
+                    availableFolders.forEach { folder ->
+                        SettingsSwitchRow(folder.substringAfterLast('/').ifBlank { folder }, folder, hiddenFolders.contains(folder)) { hide ->
+                            hiddenFolders = if (hide) hiddenFolders + folder else hiddenFolders - folder
+                            blacklistedFolders = hiddenFolders
+                            preferences.edit().putStringSet("setting_blacklisted_folders", hiddenFolders).apply()
+                        }
+                    }
                 }
             }
         }
