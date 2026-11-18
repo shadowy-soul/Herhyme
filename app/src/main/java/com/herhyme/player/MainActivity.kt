@@ -38,6 +38,11 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.QueueMusic
@@ -506,14 +511,20 @@ private fun FavoritesContent(songs: List<Song>, onSongSelected: (Song) -> Unit) 
 
 @Composable
 private fun SongsContent(songs: List<Song>, onSongSelected: (Song) -> Unit, showDuration: Boolean) {
-    var durationFilter by remember { mutableStateOf("All") }
-    val durationFilteredSongs = songs.filter { song ->
-        when (durationFilter) {
-            "Under 3 min" -> song.durationMs < 180_000L
-            "3–5 min" -> song.durationMs >= 180_000L && song.durationMs <= 300_000L
-            "Over 5 min" -> song.durationMs > 300_000L
-            else -> true
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val preferences = remember { context.getSharedPreferences("herhyme_preferences", Context.MODE_PRIVATE) }
+    var sortBy by remember { mutableStateOf(preferences.getString("songs_sort_by", "Title") ?: "Title") }
+    var ascending by remember { mutableStateOf(preferences.getBoolean("songs_sort_ascending", true)) }
+    var gridColumns by remember { mutableIntStateOf(preferences.getInt("songs_grid_columns", 3).coerceIn(2, 5)) }
+    var menuExpanded by remember { mutableStateOf(false) }
+    val sortedSongs = remember(songs, sortBy, ascending) {
+        val sorted = when (sortBy) {
+            "Artist" -> songs.sortedBy { it.artist.lowercase() }
+            "Duration" -> songs.sortedBy { it.durationMs }
+            "Date added" -> songs.sortedBy { it.dateAdded }
+            else -> songs.sortedBy { it.title.lowercase() }
         }
+        if (ascending) sorted else sorted.reversed()
     }
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -521,41 +532,59 @@ private fun SongsContent(songs: List<Song>, onSongSelected: (Song) -> Unit, show
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Your Songs", color = PrimaryText, fontSize = 23.sp, fontWeight = FontWeight.Bold)
-            Text("${durationFilteredSongs.size} tracks", color = MutedText, fontSize = 12.sp)
-        }
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(listOf("All", "Under 3 min", "3–5 min", "Over 5 min")) { option ->
-                val selected = durationFilter == option
-                Box(
-                    modifier = Modifier.clip(CircleShape)
-                        .background(if (selected) AccentColor else PanelColor)
-                        .clickable { durationFilter = option }
-                        .padding(horizontal = 14.dp, vertical = 9.dp)
-                ) {
-                    Text(option, color = if (selected) AppBackground else MutedText, fontSize = 12.sp,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
+            Column {
+                Text("Your Songs", color = PrimaryText, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+                Text("${sortedSongs.size} tracks", color = MutedText, fontSize = 12.sp)
+            }
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(Icons.Default.Menu, contentDescription = "Song options", tint = AccentColor)
+                }
+                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    DropdownMenuItem(text = { Text("Sort by", color = PrimaryText) }, onClick = { })
+                    listOf("Title", "Artist", "Duration", "Date added").forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text((if (sortBy == option) "✓ " else "") + option, color = if (sortBy == option) AccentColor else PrimaryText) },
+                            onClick = {
+                                sortBy = option
+                                preferences.edit().putString("songs_sort_by", option).apply()
+                            }
+                        )
+                    }
+                    DropdownMenuItem(
+                        text = { Text(if (ascending) "Ascending ↑" else "Descending ↓", color = PrimaryText) },
+                        onClick = {
+                            ascending = !ascending
+                            preferences.edit().putBoolean("songs_sort_ascending", ascending).apply()
+                        },
+                        leadingIcon = { Icon(if (ascending) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward, contentDescription = null, tint = AccentColor) }
+                    )
+                    DropdownMenuItem(text = { Text("Grid columns", color = PrimaryText) }, onClick = { })
+                    listOf(2, 3, 4, 5).forEach { count ->
+                        DropdownMenuItem(
+                            text = { Text((if (gridColumns == count) "✓ " else "") + "$count columns", color = if (gridColumns == count) AccentColor else PrimaryText) },
+                            onClick = {
+                                gridColumns = count
+                                preferences.edit().putInt("songs_grid_columns", count).apply()
+                            }
+                        )
+                    }
                 }
             }
         }
-        Spacer(Modifier.height(12.dp))
-        if (durationFilteredSongs.isEmpty()) {
+        if (sortedSongs.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No songs match this duration", color = MutedText)
+                Text("No songs found", color = MutedText)
             }
         } else {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
+                columns = GridCells.Fixed(gridColumns),
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 14.dp, end = 14.dp, bottom = 18.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                items(durationFilteredSongs, key = { it.id }) { song ->
+                items(sortedSongs, key = { it.id }) { song ->
                     Column(modifier = Modifier.clickable { onSongSelected(song) }) {
                         AlbumArtwork(song = song, modifier = Modifier.fillMaxWidth().aspectRatio(1f))
                         Spacer(Modifier.height(7.dp))
